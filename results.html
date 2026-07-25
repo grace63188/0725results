@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>《加冕辯論賽》六大獎項｜即時結果（主辦方專用）</title>
+<style>
+  :root {
+    --bg: #F7F7F5;
+    --card: #FFFFFF;
+    --dark: #1A1A1A;
+    --gray: #5A5A5A;
+    --lgray: #9A9A9A;
+    --gold: #C8A870;
+    --line: #E2E2E0;
+    --terra: #B07E6E;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+    background: var(--bg);
+    color: var(--dark);
+    padding: 24px 16px 60px;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  h1 { font-size: 20px; text-align: center; margin: 8px 0 2px; }
+  .sub { text-align: center; color: var(--gray); font-size: 12px; margin-bottom: 6px; }
+  .warn {
+    text-align: center;
+    color: #A94442;
+    font-size: 12px;
+    margin-bottom: 16px;
+  }
+  .status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  .total-votes { color: var(--lgray); font-size: 13px; }
+  .refresh-btn {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--gold);
+    background: #fff;
+    color: var(--gold);
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .auto-note { font-size: 11px; color: var(--lgray); }
+  .result-award {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin-bottom: 14px;
+  }
+  .result-title { font-size: 15px; font-weight: 700; margin-bottom: 10px; }
+  .bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 13px; }
+  .bar-name { width: 56px; flex-shrink: 0; color: var(--gray); }
+  .bar-track {
+    flex: 1;
+    height: 18px;
+    background: #EFEDE7;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .bar-fill { height: 100%; background: var(--gold); border-radius: 4px; }
+  .bar-fill.lead { background: var(--terra); }
+  .bar-count { width: 24px; text-align: right; font-weight: 700; flex-shrink: 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>六大獎項｜即時結果</h1>
+  <div class="sub">主辦方專用頁面，請勿分享給特別來賓</div>
+  <div class="warn" id="configWarn"></div>
+
+  <div class="status-bar">
+    <div class="total-votes" id="totalVotes">尚未讀取</div>
+    <div>
+      <span class="auto-note" id="autoNote"></span>
+      <button class="refresh-btn" id="refreshBtn">重新整理</button>
+    </div>
+  </div>
+
+  <div id="resultsContainer"></div>
+</div>
+
+<script>
+// ⚠️ 貼上跟 vote.html 相同的 Google Apps Script 部署網址
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwhhXGPUPZEsweSAvxNYXemCqPes3w-2nrvP20LgAkFR4m_CGSkE_Bw5MvS5WMebQss/exec";
+
+const AWARDS = ["加冕之星", "最佳辯鋒", "清晰之聲", "邏輯之腦", "沉穩之姿", "黑馬之勢"];
+const CANDIDATES = ["映蓉", "又庭", "慧琳", "雨璇", "婍瑄", "芷芸", "又嘉", "怡伶"];
+
+const resultsContainer = document.getElementById("resultsContainer");
+const totalVotesEl = document.getElementById("totalVotes");
+const configWarn = document.getElementById("configWarn");
+const autoNote = document.getElementById("autoNote");
+document.getElementById("refreshBtn").addEventListener("click", loadResults);
+
+if (APPS_SCRIPT_URL.indexOf("http") !== 0) {
+  configWarn.textContent = "尚未設定 Apps Script 網址，請先於程式碼中貼上部署網址";
+}
+
+async function loadResults() {
+  if (APPS_SCRIPT_URL.indexOf("http") !== 0) return;
+  totalVotesEl.textContent = "讀取中...";
+  try {
+    const res = await fetch(APPS_SCRIPT_URL);
+    const data = await res.json();
+    render(data);
+  } catch (e) {
+    totalVotesEl.textContent = "讀取失敗，請確認網址與部署設定";
+  }
+}
+
+function render(data) {
+  totalVotesEl.textContent = `目前共 ${data.totalVoters} 位來賓完成投票`;
+  resultsContainer.innerHTML = "";
+
+  AWARDS.forEach((award) => {
+    const counts = data.tally[award] || {};
+    CANDIDATES.forEach((c) => { if (!(c in counts)) counts[c] = 0; });
+    const maxCount = Math.max(0, ...Object.values(counts));
+    const sorted = CANDIDATES.slice().sort((a, b) => (counts[b] || 0) - (counts[a] || 0));
+
+    const block = document.createElement("div");
+    block.className = "result-award";
+    const title = document.createElement("div");
+    title.className = "result-title";
+    title.textContent = award;
+    block.appendChild(title);
+
+    sorted.forEach((name) => {
+      const c = counts[name] || 0;
+      const row = document.createElement("div");
+      row.className = "bar-row";
+      const nameEl = document.createElement("div");
+      nameEl.className = "bar-name";
+      nameEl.textContent = name;
+      const track = document.createElement("div");
+      track.className = "bar-track";
+      const fill = document.createElement("div");
+      fill.className = "bar-fill" + (maxCount > 0 && c === maxCount && c > 0 ? " lead" : "");
+      fill.style.width = maxCount > 0 ? `${(c / maxCount) * 100}%` : "0%";
+      track.appendChild(fill);
+      const countEl = document.createElement("div");
+      countEl.className = "bar-count";
+      countEl.textContent = c;
+      row.appendChild(nameEl);
+      row.appendChild(track);
+      row.appendChild(countEl);
+      block.appendChild(row);
+    });
+    resultsContainer.appendChild(block);
+  });
+}
+
+// 自動每 5 秒重新整理一次，讓主辦方不用手動按
+let autoSeconds = 5;
+if (APPS_SCRIPT_URL.indexOf("http") === 0) {
+  loadResults();
+  setInterval(loadResults, autoSeconds * 1000);
+  autoNote.textContent = `每 ${autoSeconds} 秒自動更新　`;
+}
+</script>
+</body>
+</html>
